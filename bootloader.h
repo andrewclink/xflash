@@ -7,6 +7,8 @@
 #include <libusb.h>
 #include "ihex.h"
 
+#define ACTUALLY_FLASH 1
+
 #ifndef bootloader_h
 #define bootloader_h
 

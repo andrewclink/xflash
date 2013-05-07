@@ -36,7 +36,7 @@ void bootloader_init(bootloader_t * bootloader, libusb_device_handle *devHandle)
   chkStatus(status, "libusb_set_configuration");
   
   // Claim the bulk interface
-  status = libusb_claim_interface(bootloader->devHandle, 1);
+  status = libusb_claim_interface(bootloader->devHandle, 0);
   chkStatus(status, "libusb_claim_interface");
 
   // Read Device Info
@@ -85,7 +85,7 @@ void bootloader_readInfo(bootloader_t* bootloader)
   memset(buffer, '\0', sizeof(*buffer));
   
   status = libusb_control_transfer(bootloader->devHandle, 0x40 | 0x80, REQ_INFO, 0, 0, (uint8_t*)buffer, 64, 1000);
-  chkStatus(status, "libusb_control_transfer");
+  chkStatus(status < 0, "libusb_control_transfer");
   
   // Correct endian
   buffer->pagesize = htole16(buffer->pagesize);
@@ -115,19 +115,30 @@ int bootloader_reset(bootloader_t *bootloader)
 
 int bootloader_erase(bootloader_t *bootloader)
 {
+#if ACTUALLY_FLASH
   return libusb_control_transfer(bootloader->devHandle, 0x40 | 0x80, REQ_ERASE, 0, 0, NULL, 0, 1000);
+#else
+  return 0;
+#endif
 }
 
-int bootloader_appCRC(bootloader_t * bootloader, uint32_t* buffer)
+int bootloader_appCRC(bootloader_t * bootloader, uint32_t* crc)
 {
-  int status = libusb_control_transfer(bootloader->devHandle, 0x40 | 0x80, REQ_CRC_APP, 0, 0, (uint8_t*)buffer, 4, 1000);
-  *buffer = htole32(*buffer);
+  // uint8_t crcBuf[4];
+  int status = libusb_control_transfer(bootloader->devHandle, 0x40 | 0x80, REQ_CRC_APP, 0, 0, crc, 4, 1000);
+  
+  printf("CRC: %04x", *crc);
+  // printHexStr(crcBuf, 4);
+  printf("\n");
+  
+  
+  // *buffer = htole32(*buffer);
 
   return status;
 }
 
 #pragma mark - Writing Flash
-#define TSIZE 64
+#define TSIZE 256
 
 struct _flash_context {
   int cnt;
@@ -150,15 +161,25 @@ static void _bootloader_didReadHexRecord(ihex_t * hex, ihex_record_t* rec, struc
       // Pad to TSIZE
       int delta = TSIZE-c->cnt;
       printf("Last buffer has %d bytes; delta: %d\n", c->cnt, delta);
-      memset((c->buf + c->cnt), 0xcf, delta);
+      memset((c->buf + c->cnt), 0xff, delta);
       c->cnt += delta;
       
-      printf(CL_GREEN "=> Writing packet: %d bytes " CL_RESET, c->cnt);
+      // printf(CL_GREEN "=> Writing packet: %d bytes " CL_RESET, c->cnt);
       int transfered=0;
-      printf("Handle: %p\n", c->bootloader->devHandle);
-      int status = libusb_bulk_transfer(c->bootloader->devHandle, 1, c->buf, c->cnt, &transfered, 1000);
+
+#if ACTUALLY_FLASH
+      int status = libusb_bulk_transfer(c->bootloader->devHandle, LIBUSB_ENDPOINT_OUT | 0x01, c->buf, c->cnt, &transfered, 1000);
+      printHexStr(c->buf, c->cnt);
+      printf("\n");
+#else
+      int status = 1;
+      printHexStr(c->buf, c->cnt);
+      printf("\n");
+#endif
       if (status == 0)
-        printf("(wrote %d OK)\n", transfered);
+      {
+        // printf("(wrote %d OK)\n", status);
+      }
       else
         printf(CL_RED "Error: %d\n" CL_RESET, status);
 
@@ -171,18 +192,30 @@ static void _bootloader_didReadHexRecord(ihex_t * hex, ihex_record_t* rec, struc
   // Write the record's data into the buffer
   int len = TSIZE - c->cnt;
   len = MIN(rec->len, len);            // May not copy the entire record!
-  // printf("->Copying %d bytes\n", len);  
+  // printf("->Copying %d bytes\n", len);
+  memcpy(c->buf + c->cnt, rec->data, rec->len);
   c->cnt += len;
   
   if (c->cnt >= TSIZE)
   {
     // Send the USB packet
     //
-    printf(CL_GREEN "=> Writing packet: %d bytes " CL_RESET, c->cnt);
+    // printf(CL_GREEN "=> Writing packet: %d bytes " CL_RESET, c->cnt);
     int transfered=0;
-    int status = libusb_bulk_transfer(c->bootloader->devHandle, 1, c->buf, TSIZE, &transfered, 1000);
+#if ACTUALLY_FLASH
+    int status = libusb_bulk_transfer(c->bootloader->devHandle, LIBUSB_ENDPOINT_OUT | 0x01, c->buf, c->cnt, &transfered, 1000);
+    printHexStr(c->buf, c->cnt);
+    printf("\n");
+#else
+    int status = 1;
+    printHexStr(c->buf, c->cnt);
+    printf("\n");
+#endif
+    
     if (status >= 0)
-      printf("(wrote %d OK)\n", status);
+    {
+      // printf("(wrote %d OK)\n", status);
+    }
     else
       printf(CL_RED "Error: %d\n" CL_RESET, status);
     
@@ -229,9 +262,13 @@ void bootloader_writeFlash(bootloader_t *bootloader, ihex_t *hex)
   
   // Signal Write Start
   //
+#if ACTUALLY_FLASH
   status = libusb_control_transfer(bootloader->devHandle, 0x40 | 0x80, REQ_START_WRITE, 0, 0, NULL, 0, 1000);
+#else
+  status = 0;
+#endif  
   if (status < 0)
-    printf(CL_RED "Input file size exceeds max device memory\n" CL_RESET);
+    printf(CL_RED "Could not start write\n" CL_RESET);
   
   
   // Read the hex, writing to the bootloader in the callback
