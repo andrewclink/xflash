@@ -24,7 +24,7 @@ static libusb_device_handle *devHandle = NULL;
 
 
 
-
+int verbose=0;
 
 void find_device()
 {
@@ -117,6 +117,14 @@ int main(int argc, const char ** argv)
 {
   int status;
   
+  // Load verbose
+  char * verbEnv = getenv("XFLASH_VERBOSE");
+  if (NULL != verbEnv)
+  {
+    sscanf(verbEnv, "%d", &verbose);
+    printf("Setting Verbose: %d\n", verbose);
+  }
+  
   find_device();
   if (NULL == dev)
   {
@@ -146,8 +154,7 @@ int main(int argc, const char ** argv)
     
   // Check App CRC
   uint32_t crc=0;
-  status = bootloader_appCRC(&bootloader, &crc); printf("Status: %d\n",status);
-
+  status = bootloader_appCRC(&bootloader, &crc); 
   printf("File CRC:0x%04x\n", hex->crc);
   printf(" App CRC: 0x%04x\n", crc);
 

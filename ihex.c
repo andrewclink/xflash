@@ -15,7 +15,7 @@
 #include "util.h"
 #include "colors.h"
 
-int verbose = 0;
+extern int verbose;
 
 ihex_t * ihex_fromPath(const char * path)
 {
@@ -112,9 +112,9 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
     len = read(hex->fd, buf, MAX_LINE);
     if (len < 1)
     {
-      if (60 != errno)
+      if (60 != len)
       {
-        printf(" Error %d: ", errno);
+        printf(" Error %d: ", len);
         perror("Could not read");
       }
       return;
@@ -375,5 +375,4 @@ void ihex_crc(ihex_t * ihex, int maxAddr, uint8_t pad)
   
   // Save CRC
   ihex->crc = context.crc;
-  printf("\n File CRC: 0x%x\n", ihex->crc);
 }

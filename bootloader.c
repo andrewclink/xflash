@@ -187,7 +187,8 @@ static void _bootloader_didReadHexRecord(ihex_t * hex, ihex_record_t* rec, struc
       else
         printf(CL_RED "Error: %d\n" CL_RESET, status);
 
-      printf ("Done\n");
+      if (verbose > 1)
+        printf ("Done\n");
       return;
     }
   }
