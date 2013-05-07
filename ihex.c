@@ -100,7 +100,7 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
   int binCount=-1; // Number of bytes in the current binBuf
   int recordLen=0; // Length of the current record to go into binBuf
   
-  char lastA;      // Used in case a is the last character of +buf+, meaning we haven't read b
+  char lastA=0x0;      // Used in case a is the last character of +buf+, meaning we haven't read b
   char    * buf = malloc(MAX_LINE);
   char    * charPtr;
   uint8_t * binBuf = malloc(MAX_BIN_LINE);
