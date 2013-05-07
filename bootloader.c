@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+
 #include "bootloader.h"
 #include "util.h"
 #include "colors.h"
@@ -125,7 +126,7 @@ int bootloader_erase(bootloader_t *bootloader)
 int bootloader_appCRC(bootloader_t * bootloader, uint32_t* crc)
 {
   // uint8_t crcBuf[4];
-  int status = libusb_control_transfer(bootloader->devHandle, 0x40 | 0x80, REQ_CRC_APP, 0, 0, crc, 4, 1000);
+  int status = libusb_control_transfer(bootloader->devHandle, 0x40 | 0x80, REQ_CRC_APP, 0, 0, (uint8_t *)crc, 4, 1000);
   
   printf("CRC: %04x", *crc);
   // printHexStr(crcBuf, 4);
