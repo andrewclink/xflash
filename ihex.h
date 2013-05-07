@@ -14,7 +14,7 @@
 
 typedef struct {
   int fd;
-  int maxaddr;
+  int maxAddr;
   uint32_t crc;
 } ihex_t;
 

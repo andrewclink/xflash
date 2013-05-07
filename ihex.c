@@ -13,6 +13,7 @@
 
 #include "ihex.h"
 #include "util.h"
+#include "colors.h"
 
 int verbose = 0;
 
@@ -82,53 +83,20 @@ static inline uint8_t charToNibble(unsigned char byte)
     nibble = (byte - 'A') + 0xA;
   else  
   {
-    printf("Warning: Unknown nibble %c (0x%02x)", byte, byte);
+    printf(CL_RED "Warning: Unknown nibble %c (0x%02x)\n" CL_RESET, byte, byte);
     return 0x00;
   }
     
   return nibble;
 }
 
-static int _ihex_checkBoundary(uint8_t a, uint8_t **ptr)
-{
-  switch(a)
-  {
-    case ':':
-      printf("HIT : ");
-      return 1;
-
-    case '\r':
-    case '\n':
-    {
-      // Find the end of the whitespace
-      uint8_t c;
-      uint8_t inc=0;
-      for(;;)
-      {
-        c = **ptr++; inc++;
-        if ('\r' == c || '\n' == c)
-          continue;
-          
-        if (c == ':')
-          return 1;
-        
-        // Wasn't tracking returns... Rewind
-        *ptr -= inc;
-        return 0;
-      }
-    }
-
-    default: 
-      return 0;
-  }
-
-  return 0;
-}
 
 void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
 {
-  // Read chunks of the file
+  // Rewind the file
+  lseek(hex->fd, 0, SEEK_SET);
   
+  // Read chunks of the file
   int binCount=-1; // Number of bytes in the current binBuf
   int recordLen=0; // Length of the current record to go into binBuf
   
@@ -145,12 +113,15 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
     len = read(hex->fd, buf, MAX_LINE);
     if (len < 1)
     {
-      printf(" Error %d: ", errno);
-      perror("read");
+      if (60 != errno)
+      {
+        printf(" Error %d: ", errno);
+        perror("read");
+      }
       return;
     }
 
-    // if (verbose > 2)
+    if (verbose > 2)
       printf("Read %d bytes; Current Bin count: %d\n", len, binCount);
 
     charPtr = buf;
@@ -167,7 +138,6 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
     //
     int eor_found = 0;
     uint8_t byte;
-    int i;
     #define breakIfLen() if (charPtr>=charPtrEnd) break
     // #define breakIfEnd(_b_) if () { printf("(EOR)\n"); eor_found = 1; break;}
     #define breakUnlessValid(_b_) \
@@ -186,6 +156,7 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
         breakIfLen();
         if (binCount >= (4 /*Header*/ + recordLen  + 1/*+ 1 Checksum*/)) 
         {
+          if (verbose > 2)
           printf("-> Finished %d/%d bytes in record\n", 
             binCount, (4 /*Header*/ + recordLen  + 1 /*Checksum*/));
           
@@ -205,11 +176,13 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
         // 
         if (-1 == binCount)
         {
-          printf("\n");
+          if (verbose > 1)
+            printf("\n");
+
           // Eat bytes until start of record
           while (charPtr < charPtrEnd && *charPtr != ':')
           {
-           printf("(SOR) Skipping 0x%02x\n", *charPtr);
+           // printf("(SOR) Skipping 0x%02x\n", *charPtr);
            charPtr++;
           }          
           
@@ -219,11 +192,11 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
           
           if (*charPtr != ':') 
           {
-            printf("Invalid Start of Frame Character\n");
+            printf(CL_RED "Invalid Start of Frame Character\n" CL_RESET);
             exit(3);
           }
           
-          printf("SOR '%c'  ", *charPtr);
+          // printf("SOR '%c'  ", *charPtr);
           
           charPtr++;
           binCount++;
@@ -259,7 +232,7 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
         if (0 == binCount)
         {
           recordLen = byte;
-          printf("Got Record Length %d\n", recordLen);
+          // printf("Got Record Length %d\n", recordLen);
         }
 
         // Copy into binBuf
@@ -275,6 +248,8 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
         //
         ihex_record_t record;
         _ihex_createRecord(&record, binBuf, binCount);
+        if (record.addr > hex->maxAddr)
+          hex->maxAddr = record.addr;
         
         // Call callback
         // 
@@ -296,6 +271,9 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
       break;
     } // End of char buffer
   } // End of file
+
+  free(buf);
+  free(binBuf);
 
   printf("\n Finished\n");
 }
@@ -319,10 +297,12 @@ void _ihex_createRecord(ihex_record_t * record, uint8_t * buf, int len)
   record->recordType = *ptr++;
   record->data = ptr;
   record->checksum = buf[len-1];
-  
+    
   // Check record checksum here
 }
 
+
+#pragma mark - CRC Calculation
 
 struct crc_context {
   int count; // Number of bytes processed so far
@@ -350,7 +330,7 @@ static void ihex_didReadCRC(ihex_t * hex, ihex_record_t* rec, struct crc_context
 {
   // Dump
   //
-  if (1 || verbose > 1)
+  if (verbose > 1)
   {
     printf("\e[;33m %08x \e[m", rec->addr);
     printf("\e[;33m %d  \e[m", rec->recordType);
@@ -364,7 +344,6 @@ static void ihex_didReadCRC(ihex_t * hex, ihex_record_t* rec, struct crc_context
   
   if (ihex_recordtype_EOF == rec->recordType)
   {
-    printf("(Skipping EOF Record for CRC)\n");
     return;
   }
   
