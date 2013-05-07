@@ -109,19 +109,20 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
   for(;;)
   {
     memset(buf, '\0', MAX_LINE);
-    // len = fread(buf, MAX_LINE, 1, hex->fd);
+    printf("Reading fd: %d\n", hex->fd);
     len = read(hex->fd, buf, MAX_LINE);
     if (len < 1)
     {
       if (60 != errno)
       {
         printf(" Error %d: ", errno);
-        perror("read");
+        perror("Could not read");
+        exit(1);
       }
       return;
     }
 
-    if (verbose > 2)
+    // if (verbose > 2)
       printf("Read %d bytes; Current Bin count: %d\n", len, binCount);
 
     charPtr = buf;
