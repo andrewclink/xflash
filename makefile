@@ -6,7 +6,7 @@ CFLAGS = -g -Wall -std=gnu99
 
 ifeq ($(CROSS),1)
 	PATH_DIR=/home/andrew/backfire/staging_dir/toolchain-mipsel_gcc-4.3.3+cs_uClibc-0.9.30.1
-	BASE_DIR=/home/andrew/backfire/staging_dir/target-mipsel_uClibc-0.9.30.1/usr/
+	BASE_DIR=/home/andrew/backfire/staging_dir/target-mipsel_uClibc-0.9.30.1/usr
 	CCPATH=$(PATH_DIR)/bin
 
 	CFLAGS += -I$(PATH_DIR)/include

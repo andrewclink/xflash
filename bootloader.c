@@ -33,7 +33,7 @@ void bootloader_init(bootloader_t * bootloader, libusb_device_handle *devHandle)
   bootloader->devHandle = devHandle;
     
   // Set Configuration
-  status = libusb_set_configuration(bootloader->devHandle, 0);
+  status = libusb_set_configuration(bootloader->devHandle, 1);
   chkStatus(status, "libusb_set_configuration");
   
   // Claim the bulk interface
