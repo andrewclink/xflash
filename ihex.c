@@ -117,7 +117,6 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
       {
         printf(" Error %d: ", errno);
         perror("Could not read");
-        exit(1);
       }
       return;
     }
