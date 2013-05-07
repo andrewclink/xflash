@@ -4,6 +4,8 @@
 
 #if !defined(__APPLE__)
 #include <endian.h>
+#define htole16(x) x
+#define htole32(x) x
 #else
 #include <machine/endian.h>
 #define __BYTE_ORDER BYTE_ORDER
@@ -28,16 +30,19 @@
 
 #endif
 
-
+#undef MAX
 #define MAX(a,b) \
   ({ __typeof__ (a) _a = (a); \
      __typeof__ (b) _b = (b); \
     _a > _b ? _a : _b; })
 
+
+#undef MIN
 #define MIN(a,b) \
   ({ __typeof__ (a) _a = (a); \
      __typeof__ (b) _b = (b); \
     _a < _b ? _a : _b; })
+
 
 #include <stdlib.h>
 #include <stdint.h>
@@ -49,4 +54,4 @@
 void printHexStr(uint8_t * buffer, int len);
 
 
-#endif;
+#endif

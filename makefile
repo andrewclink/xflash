@@ -1,36 +1,45 @@
 TARGET = xflash
-LIBS = -lm $(shell pkg-config --libs libusb-1.0)
+LIBS = -lm
 CCPATH =
 CC = gcc
-CFLAGS = -g -O0 -Wall 
+CFLAGS = -g -Wall -std=gnu99
 
-.PHONY: default all clean cross cross-env
+ifeq ($(CROSS),1)
+	PATH_DIR=/home/andrew/backfire/staging_dir/toolchain-mipsel_gcc-4.3.3+cs_uClibc-0.9.30.1
+	BASE_DIR=/home/andrew/backfire/staging_dir/target-mipsel_uClibc-0.9.30.1/usr/
+	CCPATH=$(PATH_DIR)/bin
+
+	CFLAGS += -I$(PATH_DIR)/include
+	CFLAGS += -I$(BASE_DIR)/include
+	CFLAGS += -I$(BASE_DIR)/include/libusb-1.0
+	LIBS   += -L$(BASE_DIR)/lib
+	LIBS   += -lusb-1.0
+	CC := $(CCPATH)/mipsel-openwrt-linux-uclibc-gcc 
+	LD := $(CCPATH)/mipsel-openwrt-linux-uclibc-ld
+else
+	CFLAGS += $(shell pkg-config --cflags libusb-1.0)
+	LIBS +=  $(shell pkg-config --libs libusb-1.0)
+endif
+
+.PHONY: default all clean
 
 default: $(TARGET)
 all: default
-cross: $(TARGET)-cross
-cross-env:
-	@echo "Setting up cross environment"
-	CCPATH=/backfire/staging_dir/toolchain-mipsel_gcc-4.3.3+cs_uClibc-0.9.30.1/bin
-	CC=$(CCPATH)/mipsel-openwrt-linux-uclibc-gcc 
-	LD=$(CCPATH)/mipsel-openwrt-linux-uclibc-ld
-	
 
 OBJECTS = $(patsubst %.c, %.o, $(wildcard *.c))
 HEADERS = $(wildcard *.h)
 
 %.o: %.c $(HEADERS)
+ifeq ($(CROSS),1)
+	@echo "Doing Cross Compile"
+endif
 	$(CC) $(CFLAGS) -c $< -o $@
+
 
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
 $(TARGET): $(OBJECTS)
 	$(CC) $(OBJECTS) -Wall $(LIBS) -o $@
-	
-$(TARGET)-cross: cross-env $(OBJECTS)
-	@echo "Doing Cross Compile"
-	$(CC) $(OBJECTS) -Wall $(LIBS) -o $@
-	
 
 clean:
 	-rm -f *.o
