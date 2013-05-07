@@ -109,7 +109,6 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
   for(;;)
   {
     memset(buf, '\0', MAX_LINE);
-    printf("Reading fd: %d\n", hex->fd);
     len = read(hex->fd, buf, MAX_LINE);
     if (len < 1)
     {
@@ -121,7 +120,7 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
       return;
     }
 
-    // if (verbose > 2)
+    if (verbose > 2)
       printf("Read %d bytes; Current Bin count: %d\n", len, binCount);
 
     charPtr = buf;
@@ -157,8 +156,8 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
         if (binCount >= (4 /*Header*/ + recordLen  + 1/*+ 1 Checksum*/)) 
         {
           if (verbose > 2)
-          printf("-> Finished %d/%d bytes in record\n", 
-            binCount, (4 /*Header*/ + recordLen  + 1 /*Checksum*/));
+            printf("-> Finished %d/%d bytes in record\n", 
+              binCount, (4 /*Header*/ + recordLen  + 1 /*Checksum*/));
           
           // Eat bytes until start of record
           // while (charPtr < charPtrEnd && *charPtr != ':')

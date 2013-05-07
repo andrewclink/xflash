@@ -13,6 +13,8 @@
 #include "util.h"
 #include "colors.h"
 
+extern int verbose;
+
 #define chkStatus(_s_, _msg_) _chkStatus(_s_, _msg_, __LINE__)
 static void _chkStatus(int status, const char * msg, int line);
 static void _chkStatus(int status, const char * msg, int line)
@@ -154,14 +156,16 @@ static void _bootloader_didReadHexRecord(ihex_t * hex, ihex_record_t* rec, struc
   // Ignore non-data records
   if (rec->recordType != ihex_recordtype_data)
   {
-    printf("(Ignoring non-data record)\n");
+    if (verbose > 1)
+      printf("(Ignoring non-data record)\n");
 
     // Write the final buffer
     if (ihex_recordtype_EOF == rec->recordType)
     {
       // Pad to TSIZE
       int delta = TSIZE-c->cnt;
-      printf("Last buffer has %d bytes; delta: %d\n", c->cnt, delta);
+      if (verbose > 1)
+        printf("Last buffer has %d bytes; delta: %d\n", c->cnt, delta);
       memset((c->buf + c->cnt), 0xff, delta);
       c->cnt += delta;
       
@@ -170,8 +174,6 @@ static void _bootloader_didReadHexRecord(ihex_t * hex, ihex_record_t* rec, struc
 
 #if ACTUALLY_FLASH
       int status = libusb_bulk_transfer(c->bootloader->devHandle, LIBUSB_ENDPOINT_OUT | 0x01, c->buf, c->cnt, &transfered, 1000);
-      printHexStr(c->buf, c->cnt);
-      printf("\n");
 #else
       int status = 1;
       printHexStr(c->buf, c->cnt);
@@ -179,7 +181,8 @@ static void _bootloader_didReadHexRecord(ihex_t * hex, ihex_record_t* rec, struc
 #endif
       if (status == 0)
       {
-        // printf("(wrote %d OK)\n", status);
+        if (verbose > 2)
+          printf("(wrote %d OK)\n", status);
       }
       else
         printf(CL_RED "Error: %d\n" CL_RESET, status);
@@ -205,8 +208,6 @@ static void _bootloader_didReadHexRecord(ihex_t * hex, ihex_record_t* rec, struc
     int transfered=0;
 #if ACTUALLY_FLASH
     int status = libusb_bulk_transfer(c->bootloader->devHandle, LIBUSB_ENDPOINT_OUT | 0x01, c->buf, c->cnt, &transfered, 1000);
-    printHexStr(c->buf, c->cnt);
-    printf("\n");
 #else
     int status = 1;
     printHexStr(c->buf, c->cnt);

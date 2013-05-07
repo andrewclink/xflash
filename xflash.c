@@ -154,7 +154,11 @@ int main(int argc, const char ** argv)
   if (crc == hex->crc)
   {
     printf(CL_GREEN "CRC Matches\n" CL_RESET);
-    bootloader_reset(&bootloader);
+    status = bootloader_reset(&bootloader);
+    if (status != 0)
+    {
+      printf(CL_RED "Could not reset target: %d\n" CL_RESET, status);
+    }
   }
   else
   {
