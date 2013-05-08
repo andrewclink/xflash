@@ -197,7 +197,7 @@ int main(int argc, const char ** argv)
   {
     printf(CL_YELLOW "Resetting application\n" CL_RESET);
     // Set Configuration
-    s = libusb_set_configuration(devHandle, 0);
+    s = libusb_set_configuration(devHandle, 1);
     if (s !=0) { printf("libusb_set_configuration %d\n", s); exit(2); }
 
     // Reset device into bootloader
