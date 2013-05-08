@@ -197,12 +197,12 @@ int main(int argc, const char ** argv)
   {
     printf(CL_YELLOW "Resetting application\n" CL_RESET);
     // Set Configuration
-    s = libusb_set_configuration(devHandle, 1);
-    if (s !=0) { printf("libusb_set_configuration %d", s); exit(2); }
+    s = libusb_set_configuration(devHandle, 0);
+    if (s !=0) { printf("libusb_set_configuration %d\n", s); exit(2); }
 
     // Claim the bulk interface
     s = libusb_claim_interface(devHandle, 0);
-    if (s !=0) { printf("libusb_claim_interface %d", s); exit(2); }
+    if (s !=0) { printf("libusb_claim_interface %d\n", s); exit(2); }
     
     // Reset device into bootloader
     s = libusb_control_transfer(devHandle, LIBUSB_REQUEST_TYPE_VENDOR | 0x80, REQ_APP_RESET, 0, 0, NULL, 0, 1000);
