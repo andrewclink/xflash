@@ -33,7 +33,6 @@ void ihex_init(ihex_t * ihex)
 {
   memset(ihex, '\0', sizeof(*ihex));
   ihex->fd = -1;
-	
 }
 
 void ihex_free(ihex_t *ihex)
@@ -109,15 +108,27 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
   for(;;)
   {
     memset(buf, '\0', MAX_LINE);
-    len = read(hex->fd, buf, MAX_LINE);
-    if (len < 1)
+
+    // Wrap read to catch EAGAIN
+    for(;;)
     {
-      if (60 != len)
-      {
-        printf(" Error %d: ", len);
-        perror("Could not read");
-      }
-      return;
+      len = read(hex->fd, buf, MAX_LINE);
+      if ((len < 0) && (errno == EAGAIN || errno == EINTR))
+        continue;
+      break;
+    }
+    
+    if (len == 0)
+    {
+      // Finished reading
+      goto finalize_read;
+    }
+
+    if (len < 0)
+    {
+      printf(CL_RED "Read Error %d: \n" CL_RESET, len);
+      perror(CL_RED "Could not read" CL_RESET);
+      goto finalize_read;
     }
 
     if (verbose > 2)
@@ -247,8 +258,15 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
         //
         ihex_record_t record;
         _ihex_createRecord(&record, binBuf, binCount);
-        if (record.addr > hex->maxAddr)
-          hex->maxAddr = record.addr;
+        
+        if (0 == hex->wasRead)
+        {
+          if (record.addr > hex->maxAddr)
+            hex->maxAddr = record.addr;
+          
+          // Update hex byte size
+          hex->size += record.len;
+        }
         
         // Call callback
         // 
@@ -271,10 +289,12 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
     } // End of char buffer
   } // End of file
 
+finalize_read:
+
   free(buf);
   free(binBuf);
-
-  printf("\n Finished\n");
+  
+  hex->wasRead = 1;
 }
 
 static inline uint16_t _readUInt16(uint8_t* ptr)

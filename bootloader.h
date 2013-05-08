@@ -12,8 +12,11 @@
 #ifndef bootloader_h
 #define bootloader_h
 
-#define VID 0x59E3
-#define PID 0xBBBB
+#define MY_VID          0x6666
+#define BOOTLOADER_VID  0x59E3
+#define BOOTLOADER_PID  0xBBBB
+
+#define REQ_APP_RESET   0xBB
 
 #define REQ_INFO        0xB0
 #define REQ_ERASE       0xB1

@@ -13,8 +13,10 @@
 #define MAX_BIN_LINE (MAX_LINE/2)
 
 typedef struct {
+	signed char wasRead:1;
   int fd;
   int maxAddr;
+	int size;
   uint32_t crc;
 } ihex_t;
 

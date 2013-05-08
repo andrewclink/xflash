@@ -81,10 +81,6 @@ void bootloader_readInfo(bootloader_t* bootloader)
   bootloader_info_t * buffer = &bootloader->info;
   int status;
 
-  printf("-----------------------\n");
-  printf("Reading Info into %p\n", buffer);
-
-
   memset(buffer, '\0', sizeof(*buffer));
   
   status = libusb_control_transfer(bootloader->devHandle, 0x40 | 0x80, REQ_INFO, 0, 0, (uint8_t*)buffer, 64, 1000);
@@ -96,17 +92,25 @@ void bootloader_readInfo(bootloader_t* bootloader)
   buffer->jumpaddr = htole32(buffer->jumpaddr);
   
   
-  printf("\n\n");
-  
-  printf("  Magic: "); printHexStr((uint8_t *)&buffer->magic, 4); printf("\n");
-  printf("  Version: %d\n", buffer->version);
-  printf("  Part: "); printHexStr((uint8_t *)&buffer->part, 4); printf("\n");
-  printf("  Part: %s\n", bootloader_strForDevice((uint8_t *)&buffer->part));
-  printf("  Pagesize: %d; ", buffer->pagesize);
-  printf("  Memsize: %d; ",  buffer->memsize + 1); 
-  printf("  Jump Addr: 0x%x\n", buffer->jumpaddr);
-  printf("  Prod: %s\n", buffer->hw_prod);
-  printf("  HWVer: %s\n", buffer->hw_ver);
+  printf("-----------------------\n");
+  if (verbose > 1)
+  {
+    printf("  Magic: "); printHexStr((uint8_t *)&buffer->magic, 4); printf("\n");
+    printf("  Version: %d\n", buffer->version);
+    printf("  Part: "); printHexStr((uint8_t *)&buffer->part, 4); printf("\n");
+    printf("  Part: %s\n", bootloader_strForDevice((uint8_t *)&buffer->part));
+    printf("  Pagesize: %d; ", buffer->pagesize);
+    printf("  Memsize: %d; ",  buffer->memsize + 1); 
+    printf("  Jump Addr: 0x%x\n", buffer->jumpaddr);
+    printf("  Prod: %s; HWVer: %s\n", buffer->hw_prod, buffer->hw_ver);
+  }
+  else
+  {
+    printf("  Bootloader Version %d\n", buffer->version);
+    printf("  Part: %s\n", bootloader_strForDevice((uint8_t *)&buffer->part));
+    printf("  Memsize: %d; ",  buffer->memsize + 1); 
+    printf("  Prod: %s; HWVer: %s\n", buffer->hw_prod, buffer->hw_ver);
+  }
   printf("-----------------------\n");
 }
 
@@ -127,16 +131,7 @@ int bootloader_erase(bootloader_t *bootloader)
 
 int bootloader_appCRC(bootloader_t * bootloader, uint32_t* crc)
 {
-  // uint8_t crcBuf[4];
   int status = libusb_control_transfer(bootloader->devHandle, 0x40 | 0x80, REQ_CRC_APP, 0, 0, (uint8_t *)crc, 4, 1000);
-  
-  printf("CRC: %04x", *crc);
-  // printHexStr(crcBuf, 4);
-  printf("\n");
-  
-  
-  // *buffer = htole32(*buffer);
-
   return status;
 }
 
@@ -145,6 +140,7 @@ int bootloader_appCRC(bootloader_t * bootloader, uint32_t* crc)
 
 struct _flash_context {
   int cnt;
+  int bytesWritten;
   uint8_t * buf;
   bootloader_t * bootloader;
 };
@@ -172,26 +168,33 @@ static void _bootloader_didReadHexRecord(ihex_t * hex, ihex_record_t* rec, struc
       // printf(CL_GREEN "=> Writing packet: %d bytes " CL_RESET, c->cnt);
       int transfered=0;
 
+
 #if ACTUALLY_FLASH
       int status = libusb_bulk_transfer(c->bootloader->devHandle, LIBUSB_ENDPOINT_OUT | 0x01, c->buf, c->cnt, &transfered, 1000);
 #else
       int status = 1;
-      printHexStr(c->buf, c->cnt);
-      printf("\n");
-#endif
-      if (status == 0)
+      if (verbose > 1)
       {
+        printHexStr(c->buf, c->cnt);
+        printf("\n");
+      }
+#endif
+      if (status >= 0)
+      {
+        printf("\b\b\b\b100%%");
         if (verbose > 2)
           printf("(wrote %d OK)\n", status);
       }
       else
-        printf(CL_RED "Error: %d\n" CL_RESET, status);
+        printf(CL_RED "Error writing final buffer: %d\n" CL_RESET, status);
 
       if (verbose > 1)
-        printf ("Done\n");
+        printf ("\nDone\n");
       return;
     }
   }
+  
+
   
 
   // Write the record's data into the buffer
@@ -211,16 +214,21 @@ static void _bootloader_didReadHexRecord(ihex_t * hex, ihex_record_t* rec, struc
     int status = libusb_bulk_transfer(c->bootloader->devHandle, LIBUSB_ENDPOINT_OUT | 0x01, c->buf, c->cnt, &transfered, 1000);
 #else
     int status = 1;
-    printHexStr(c->buf, c->cnt);
-    printf("\n");
+    if (verbose > 1)
+    {
+      printHexStr(c->buf, c->cnt);
+      printf("\n");
+    }
 #endif
     
     if (status >= 0)
     {
-      // printf("(wrote %d OK)\n", status);
+      c->bytesWritten += c->cnt;
+      printf("\b\b\b\b"); // Back up
+      printf("% 3d%%", c->bytesWritten * 100 / hex->size);
     }
     else
-      printf(CL_RED "Error: %d\n" CL_RESET, status);
+      printf(CL_RED "Flash Error: %d\n" CL_RESET, status);
     
     
     // If we didn't write the entire record, copy it to the beginning of the buffer
@@ -254,7 +262,6 @@ static void _bootloader_didReadHexRecord(ihex_t * hex, ihex_record_t* rec, struc
 void bootloader_writeFlash(bootloader_t *bootloader, ihex_t *hex)
 {
   int status;
-  printf("-> Writing Flash\n");
   
   // Check that the file will fit
   if (hex->maxAddr > bootloader->info.memsize)
@@ -276,10 +283,8 @@ void bootloader_writeFlash(bootloader_t *bootloader, ihex_t *hex)
   
   // Read the hex, writing to the bootloader in the callback
   uint8_t * buf = malloc(TSIZE+1); // byte 0 is the current buffer count! byte 1 is the start of the buffer
-  struct _flash_context context = { 0, buf, bootloader };
+  struct _flash_context context = { 0, 0, buf, bootloader };
   ihex_read(hex, (ihex_readCallback*)_bootloader_didReadHexRecord, &context);
   
   free(buf);
-  
-  printf("-> Wrote\n");
 }
