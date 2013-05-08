@@ -4,6 +4,8 @@ CCPATH =
 CC = gcc
 CFLAGS = -g -Wall -std=gnu99
 
+INSTALL_DIR = /Users/andrew/bin
+
 ifeq ($(CROSS),1)
 	PATH_DIR=/home/andrew/backfire/staging_dir/toolchain-mipsel_gcc-4.3.3+cs_uClibc-0.9.30.1
 	BASE_DIR=/home/andrew/backfire/staging_dir/target-mipsel_uClibc-0.9.30.1/usr
@@ -25,6 +27,8 @@ endif
 
 default: $(TARGET)
 all: default
+install: all
+	cp $(TARGET) $(INSTALL_DIR)
 
 OBJECTS = $(patsubst %.c, %.o, $(wildcard *.c))
 HEADERS = $(wildcard *.h)
