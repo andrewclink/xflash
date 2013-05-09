@@ -40,8 +40,11 @@ libusb_device * find_device(void)
     return NULL;
   }
 
-  uint16_t searchProductID = (0xFFFFffff == forceProductID) ? forceProductID : BOOTLOADER_VID;
-  uint16_t searchVendorID  = (0xFFFFffff == forceVendorID)  ? forceVendorID  : BOOTLOADER_PID;
+  uint16_t searchProductID = (0xFFFFffff != forceProductID) ? forceProductID : BOOTLOADER_VID;
+  uint16_t searchVendorID  = (0xFFFFffff != forceVendorID)  ? forceVendorID  : BOOTLOADER_PID;
+  
+  printf("Searching for Vendor ID:  0x%04x\n", searchProductID);
+  printf("Searching for Product ID: 0x%04x\n", searchVendorID);
   
 
   int found = 0;
@@ -153,12 +156,10 @@ int main(int argc, char *argv[])
 
       case 'v': // Vendor ID
         sscanf((optarg[1] == 'x' || optarg[1] == 'X') ? optarg + 2 : optarg, "%04x", &forceVendorID);
-        printf("Using Vendor ID: 0x%04x\n", forceVendorID);
         break;
 
       case 'p': // Product ID
         sscanf((optarg[1] == 'x' || optarg[1] == 'X') ? optarg + 2 : optarg, "%04x", &forceProductID);
-        printf("Using Product ID: 0x%04x\n", forceProductID);
         break;
     }
   }
@@ -221,7 +222,7 @@ int main(int argc, char *argv[])
     if (s !=0) { printf("libusb_set_configuration %d\n", s); exit(2); }
 
     // Reset device into bootloader
-    s = libusb_control_transfer(devHandle, LIBUSB_REQUEST_TYPE_VENDOR | 0x80, REQ_APP_RESET, 0, 0, NULL, 0, 1000);
+    s = libusb_control_transfer(devHandle, LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_IN, REQ_APP_RESET, 0, 0, NULL, 0, 1000);
     libusb_close(devHandle);
     devHandle = NULL;
     
