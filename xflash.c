@@ -79,7 +79,7 @@ libusb_device * find_device(void)
       }
 
       // Is this a resettable application?
-      if (0xFFFFffff != forceVendorID && desc.idVendor == MY_VID)
+      if (0xFFFFffff == forceVendorID && desc.idVendor == MY_VID && desc.idProduct == searchProductID)
       {
         if (verbose > 2)
           printf(CL_RED " <=\n" CL_RESET);
