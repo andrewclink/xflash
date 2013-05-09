@@ -213,6 +213,8 @@ int main(int argc, char *argv[])
   
   if (MY_VID == desc.idVendor)
   {
+    forceVendorID = 0xFFFFffff; // Look for bootloader now.
+    
     printf(CL_YELLOW "Resetting application\n" CL_RESET);
     // Set Configuration
     s = libusb_set_configuration(devHandle, 1);
