@@ -40,11 +40,11 @@ libusb_device * find_device(void)
     return NULL;
   }
 
-  uint16_t searchProductID = (0xFFFFffff != forceProductID) ? forceProductID : BOOTLOADER_VID;
-  uint16_t searchVendorID  = (0xFFFFffff != forceVendorID)  ? forceVendorID  : BOOTLOADER_PID;
+  uint16_t searchProductID = (0xFFFFffff != forceProductID) ? forceProductID : BOOTLOADER_PID;
+  uint16_t searchVendorID  = (0xFFFFffff != forceVendorID)  ? forceVendorID  : BOOTLOADER_VID;
   
-  printf("Searching for Vendor ID:  0x%04x\n", searchProductID);
-  printf("Searching for Product ID: 0x%04x\n", searchVendorID);
+  printf("Searching for Vendor ID:  %04x\n", searchProductID);
+  printf("Searching for Product ID: %04x\n", searchVendorID);
   
 
   int found = 0;
@@ -66,7 +66,7 @@ libusb_device * find_device(void)
       }
       
       if (verbose > 2)
-        printf("-> Checking 0x%04x:0x%04x: ", desc.idVendor, desc.idProduct);
+        printf("-> Checking %04x:%04x: ", desc.idVendor, desc.idProduct);
       
       
       // Is this a bootloader?
@@ -74,13 +74,17 @@ libusb_device * find_device(void)
       {
         if (verbose > 2)
           printf( CL_GREEN " <=\n" CL_RESET);
+
         found = 1;
         break;
       }
 
       // Is this a resettable application?
-      if (0xFFFFffff == forceVendorID && desc.idVendor == MY_VID && desc.idProduct == searchProductID)
+      if (0xFFFFffff == forceVendorID  && desc.idVendor == MY_VID &&          // Only search for MY_VID if vendor unset
+         (0xFFFFffff == forceProductID || desc.idProduct == searchProductID)) // Search for forceProductID if given 
       {
+        printf(":");
+        
         if (verbose > 2)
           printf(CL_RED " <=\n" CL_RESET);
         found = 1;
@@ -265,7 +269,7 @@ int main(int argc, char *argv[])
   bootloader_init(&bootloader, devHandle);
 
   
-  ihex_t * hex = ihex_fromPath(argv[1]);
+  ihex_t * hex = ihex_fromPath(argv[argc-1]);
   ihex_crc(hex, bootloader.info.memsize, 0xff);
   
   // Erase device

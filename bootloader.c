@@ -16,28 +16,33 @@
 
 extern int verbose;
 
-#define chkStatus(_s_, _msg_) _chkStatus(_s_, _msg_, __LINE__)
-static void _chkStatus(int status, const char * msg, int line);
-static void _chkStatus(int status, const char * msg, int line)
+#define chkStatus(_s_, _msg_) _chkStatus(_s_, _msg_, __LINE__, 1)
+#define chkStatusSoft(_s_, _msg_) _chkStatus(_s_, _msg_, __LINE__, 0)
+static void _chkStatus(int status, const char * msg, int line, int kill);
+static void _chkStatus(int status, const char * msg, int line, int kill)
 {
   if (status != 0)
   { 
     printf(CL_RED "Line %d: %s failed: %d\n" CL_RESET, 
       line, msg, status); 
-    exit(3); 
+    
+    if (kill)
+      exit(3); 
   }
 }
 
 
 void bootloader_init(bootloader_t * bootloader, libusb_device_handle *devHandle)
 {
+  sleep(1);
+  
   int status;
   memset(bootloader, '\0', sizeof(*bootloader));
   bootloader->devHandle = devHandle;
     
   // Set Configuration
   status = libusb_set_configuration(bootloader->devHandle, 1);
-  chkStatus(status, "libusb_set_configuration");
+  chkStatusSoft(status, "libusb_set_configuration");
   
   // Claim the bulk interface
   status = libusb_claim_interface(bootloader->devHandle, 0);

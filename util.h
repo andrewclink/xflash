@@ -3,7 +3,7 @@
 #define _UTIL_H_
 
 #if !defined(__APPLE__)
-#include <endian.h>
+// #include <endian.h>
 #define htole16(x) x
 #define htole32(x) x
 #else
