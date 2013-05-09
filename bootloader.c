@@ -114,9 +114,9 @@ void bootloader_readInfo(bootloader_t* bootloader)
   
   
   // Correct endian
-  buffer->pagesize = htole16(buffer->pagesize);
-  buffer->memsize  = htole32(buffer->memsize);
-  buffer->jumpaddr = htole32(buffer->jumpaddr);
+  buffer->pagesize = buffer->pagesize;
+  buffer->memsize  = buffer->memsize;
+  buffer->jumpaddr = buffer->jumpaddr;
   
   
   printf("-----------------------\n");
