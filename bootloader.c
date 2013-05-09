@@ -84,7 +84,7 @@ void bootloader_readInfo(bootloader_t* bootloader)
   memset(buffer, '\0', sizeof(*buffer));
   
   status = libusb_control_transfer(bootloader->devHandle, 0x40 | 0x80, REQ_INFO, 0, 0, (uint8_t*)buffer, 64, 1000);
-  chkStatus(status < 0, "libusb_control_transfer");
+  if (status < 0) chkStatus(status, "libusb_control_transfer");
   
   // Correct endian
   buffer->pagesize = htole16(buffer->pagesize);
