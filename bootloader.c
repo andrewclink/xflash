@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 
 #include "bootloader.h"
@@ -83,8 +84,29 @@ void bootloader_readInfo(bootloader_t* bootloader)
 
   memset(buffer, '\0', sizeof(*buffer));
   
-  status = libusb_control_transfer(bootloader->devHandle, 0x40 | 0x80, REQ_INFO, 0, 0, (uint8_t*)buffer, 64, 1000);
-  if (status < 0) chkStatus(status, "libusb_control_transfer");
+  int i;
+  for(i=0; i<4; i++)
+  {
+    status = libusb_control_transfer(bootloader->devHandle, 
+                                     LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_IN, 
+                                     REQ_INFO,  /* Request */
+                                     0,         /* bValue */
+                                     0,         /* wIndex */
+                                     (uint8_t*)buffer, /* Receive Buffer */ 
+                                     64,    /* Size */
+                                     1000); /* Timeout */
+    
+    if (status > -1) 
+      break;
+
+    printf(CL_RED "Info request failed: %d\n" CL_RESET, status);
+    printf("Retrying\n");
+    usleep(250000);
+  }
+
+  if (status < 0)
+    exit(3);
+  
   
   // Correct endian
   buffer->pagesize = htole16(buffer->pagesize);
