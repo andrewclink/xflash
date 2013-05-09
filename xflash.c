@@ -21,7 +21,8 @@
 
   
 static libusb_context *ctx = NULL;
-
+static int forceProductID = 0xffffFFFF;
+static int forceVendorID  = 0xFFFFffff;
 
 
 int verbose=0;
@@ -29,10 +30,6 @@ int verbose=0;
 libusb_device * find_device(void)
 {
   ssize_t i = 0;
-
-  libusb_init(&ctx);
-  // libusb_set_debug(ctx, 3);
-
   printf("Searching for devices...\n");
 
   libusb_device **list;
@@ -42,6 +39,10 @@ libusb_device * find_device(void)
   {
     return NULL;
   }
+
+  uint16_t searchProductID = (0xFFFFffff == forceProductID) ? forceProductID : BOOTLOADER_VID;
+  uint16_t searchVendorID  = (0xFFFFffff == forceVendorID)  ? forceVendorID  : BOOTLOADER_PID;
+  
 
   int found = 0;
   libusb_device *device = NULL;
@@ -64,8 +65,9 @@ libusb_device * find_device(void)
       if (verbose > 2)
         printf("-> Checking 0x%04x:0x%04x: ", desc.idVendor, desc.idProduct);
       
+      
       // Is this a bootloader?
-      if (desc.idVendor == BOOTLOADER_VID && desc.idProduct == BOOTLOADER_PID)
+      if (desc.idVendor == searchVendorID && desc.idProduct == searchProductID)
       {
         if (verbose > 2)
           printf( CL_GREEN " <=\n" CL_RESET);
@@ -74,7 +76,7 @@ libusb_device * find_device(void)
       }
 
       // Is this a resettable application?
-      if (desc.idVendor == MY_VID)
+      if (0xFFFFffff != forceVendorID && desc.idVendor == MY_VID)
       {
         if (verbose > 2)
           printf(CL_RED " <=\n" CL_RESET);
@@ -129,21 +131,37 @@ void printdev(libusb_device *dev)
   //   unsigned int   timeout 
   //   )
 
-
-
-
-int main(int argc, const char ** argv)
+int main(int argc, char *argv[])
 {
   int s;//tatus
+
+  libusb_init(&ctx);
   
-  // Load verbosity
-  char * verbEnv = getenv("XFLASH_VERBOSE");
-  if (NULL != verbEnv)
+  // Read options
+  int opt;
+  while ((opt = getopt(argc, argv, "V:p:v:")) != -1)
   {
-    sscanf(verbEnv, "%d", &verbose);
-    printf("Setting Verbose: %d\n", verbose);
+    switch(opt)
+    {
+      case 'V': // Verbosity
+        verbose = atoi(optarg);
+        printf("Setting verbose: %d\n", verbose);
+        if (verbose > 2)
+          libusb_set_debug(ctx, 3);
+        
+        break;
+
+      case 'v': // Vendor ID
+        sscanf((optarg[1] == 'x' || optarg[1] == 'X') ? optarg + 2 : optarg, "%04x", &forceVendorID);
+        printf("Using Vendor ID: 0x%04x\n", forceVendorID);
+        break;
+
+      case 'p': // Product ID
+        sscanf((optarg[1] == 'x' || optarg[1] == 'X') ? optarg + 2 : optarg, "%04x", &forceProductID);
+        printf("Using Product ID: 0x%04x\n", forceProductID);
+        break;
+    }
   }
-  
   
   // Find an interesting device
   //
