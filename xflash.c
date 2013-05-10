@@ -47,8 +47,8 @@ libusb_device * find_device(void)
   printf("Searching for Product ID: %04x\n", searchVendorID);
   
 
-  int found = 0;
   libusb_device *device = NULL;
+  libusb_device *preferredDevice = NULL;
   for (i = 0; i < cnt; i++) 
   {
        device = list[i];
@@ -75,8 +75,8 @@ libusb_device * find_device(void)
         if (verbose > 2)
           printf( CL_GREEN " <=\n" CL_RESET);
 
-        found = 1;
-        break;
+        preferredDevice = device;
+        break; // Use first bootloader available
       }
 
       // Is this a resettable application?
@@ -87,25 +87,21 @@ libusb_device * find_device(void)
         
         if (verbose > 2)
           printf(CL_RED " <=\n" CL_RESET);
-        found = 1;
-        break;
+
+        preferredDevice = device; // Possibly use this application device, unless we find a bootloader
       }
 
       if (verbose > 2)
         printf("\n");
   }
 
-  if (found)
+  if (NULL != preferredDevice)
   {
-    libusb_ref_device(device); 
-  }
-  else
-  {
-    device = NULL;
+    libusb_ref_device(preferredDevice); 
   }
 
   libusb_free_device_list(list, 1);
-  return device;
+  return preferredDevice;
 }
 
 
@@ -216,19 +212,28 @@ int main(int argc, char *argv[])
     exit(1);
   }
   
-  if (MY_VID == desc.idVendor)
+  if (desc.idVendor != BOOTLOADER_VID && desc.idProduct != BOOTLOADER_PID)
   {
-    forceVendorID = 0xFFFFffff; // Look for bootloader now.
-    
     printf(CL_YELLOW "Resetting application\n" CL_RESET);
+
     // Set Configuration
     s = libusb_set_configuration(devHandle, 1);
-    if (s !=0) { printf("libusb_set_configuration %d\n", s); exit(2); }
+    if (s !=0) { printf( CL_RED "libusb_set_configuration error %d\n" CL_RESET, s); }
 
     // Reset device into bootloader
     s = libusb_control_transfer(devHandle, LIBUSB_REQUEST_TYPE_VENDOR | LIBUSB_ENDPOINT_IN, REQ_APP_RESET, 0, 0, NULL, 0, 1000);
+    if (s < 0) { printf( CL_RED "libusb_control_transfer error %d\n" CL_RESET, s); }
+
     libusb_close(devHandle);
     devHandle = NULL;
+    
+    // Now, find the device in bootloader, meaning we need to eschew the preferential
+    // treatment formerly given to the device/product IDs
+    forceVendorID  = 0x59e3;
+    forceProductID = 0xbbbb;
+    
+    // Give device time to gather its thoughts
+    usleep(500000);
     
     int i;
     for (i=0; i<10; i++)
@@ -241,7 +246,7 @@ int main(int argc, char *argv[])
     
     if (NULL == dev)
     {
-      // Waited a whole second for the device to reattach and came up emtpy-handed.
+      // We've waited a whole second for the device to reattach and came up emtpy-handed.
       printf(CL_RED "Unable to locate device after reset\n");
       exit(2);
     }

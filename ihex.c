@@ -99,7 +99,7 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
   int binCount=-1; // Number of bytes in the current binBuf
   int recordLen=0; // Length of the current record to go into binBuf
   
-  char lastA=0x0;      // Used in case a is the last character of +buf+, meaning we haven't read b
+  unsigned char lastA=0x1b;      // Used in case a is the last character of +buf+, meaning we haven't read b
   char    * buf = malloc(MAX_LINE);
   char    * charPtr;
   uint8_t * binBuf = malloc(MAX_BIN_LINE);
@@ -114,13 +114,19 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
     {
       len = read(hex->fd, buf, MAX_LINE);
       if ((len < 0) && (errno == EAGAIN || errno == EINTR))
+      {
+        if (verbose > 1)
+          printf(CL_YELLOW "Repeating Read: %s\n" CL_RESET, strerror(errno));
         continue;
+      }
       break;
     }
     
     if (len == 0)
     {
       // Finished reading
+      if (verbose > 2)
+        printf("Finalizing Read\n");
       goto finalize_read;
     }
 
@@ -212,12 +218,25 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
           binCount++;
         }
         
+        if (charPtr >= charPtrEnd)
+        {
+          if (verbose > 3)
+            printf(CL_YELLOW "Buffer empty after SOF\n" CL_RESET);
+
+          break;
+        }
+        
+        
         // Read two chars (one byte)
-        char a, b='0';
-        if (lastA != 0x0)
-        {  
+        unsigned char a, b='0';
+
+        if (lastA != 0x1b)
+        { 
+          if (verbose > 3)
+            printf(CL_YELLOW "Resuming with nibble a=0x%02x\n" CL_RESET, lastA);
+          
           a = lastA;
-          lastA = 0x0;
+          lastA = 0x1b;
         }
         else
         {
@@ -227,6 +246,8 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
         if (charPtr >= charPtrEnd)
         {
           // We have to read more characters before continuing
+          if (verbose > 3)
+            printf(CL_YELLOW "Caching nibble a (0x%02x) for buffer refresh\n" CL_RESET, a);
           lastA = a;
           break;
         }
