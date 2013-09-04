@@ -124,10 +124,11 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
     
     if (len == 0)
     {
-      // Finished reading
+      // Finished reading (current record?)
       if (verbose > 2)
         printf(CL_RED "Finalizing Read\n" CL_RESET);
-      goto finalize_read;
+      break;
+      // goto finalize_read;
     }
 
     if (len < 0)
