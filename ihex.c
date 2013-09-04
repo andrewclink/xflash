@@ -126,7 +126,7 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
     {
       // Finished reading
       if (verbose > 2)
-        printf("Finalizing Read\n");
+        printf(CL_RED "Finalizing Read\n" CL_RESET);
       goto finalize_read;
     }
 
@@ -312,8 +312,10 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
 
 finalize_read:
 
-  if (verbose > 2)
-    printf("Freeing buf: %p ; binBuf: %p;\n", buf, binBuf);
+  printf(CL_RED "NOT FREEING BUF\n" CL_RESET);
+
+  // if (verbose > 2)
+  //   printf("Freeing buf: %p ; binBuf: %p;\n", buf, binBuf);
 
   free(buf);
   free(binBuf);
