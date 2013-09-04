@@ -313,7 +313,7 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
 finalize_read:
 
   if (verbose > 2)
-    printf("Freeing buf: %p ; binBuf: %p;\n");
+    printf("Freeing buf: %p ; binBuf: %p;\n", buf, binBuf);
 
   free(buf);
   free(binBuf);
