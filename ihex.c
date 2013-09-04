@@ -100,7 +100,7 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
   int recordLen=0; // Length of the current record to go into binBuf
   
   unsigned char lastA=0x1b;      // Used in case a is the last character of +buf+, meaning we haven't read b
-  char    * buf = malloc(MAX_LINE);
+  char    * buf = malloc(MAX_LINE );
   char    * charPtr;
   uint8_t * binBuf = malloc(MAX_BIN_LINE);
 
@@ -311,6 +311,9 @@ void ihex_read(ihex_t * hex, ihex_readCallback callback, void *context)
   } // End of file
 
 finalize_read:
+
+  if (verbose > 2)
+    printf("Freeing buf: %p ; binBuf: %p;\n");
 
   free(buf);
   free(binBuf);
